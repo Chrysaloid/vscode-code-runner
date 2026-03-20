@@ -469,7 +469,7 @@ export class CodeManager implements vscode.Disposable {
 				this._writeEmitter.fire(command + "\r\n");
 			}
 
-			const handleData = data => { // does not work
+			const handleData = data => {
 				let str: string = data.toString();
 				if (str.endsWith("\n\r")) {
 					str = str.slice(0, -2) + "\r\n";
