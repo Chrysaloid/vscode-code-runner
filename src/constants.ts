@@ -1,5 +1,3 @@
-"use strict";
-
 export class Constants {
-    public static readonly python = "python";
+	public static readonly python = "python";
 }
