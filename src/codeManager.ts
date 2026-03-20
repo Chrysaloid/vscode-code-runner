@@ -469,17 +469,44 @@ export class CodeManager implements vscode.Disposable {
 				this._writeEmitter.fire(command + "\r\n");
 			}
 
-			const handleData = data => {
+			const handleData = data => { // does not work
 				let str: string = data.toString();
-				if (!(str.endsWith("\r\n") || str.endsWith("\n\r"))) {
+				if (str.endsWith("\n\r")) {
+					str = str.slice(0, -2) + "\r\n";
+				} else if (!str.endsWith("\r\n")) {
 					if (str.endsWith("\r")) {
 						str += "\n";
 					} else if (str.endsWith("\n")) {
-						str += "\r";
+						str = str.slice(0, -1) + "\r\n";
 					}
 				}
 				this._writeEmitter.fire(str);
 			};
+			/*
+			let pendingCR = false;
+			const handleData = data => { // this fixed wrong chalk --demo behaviour but disables the use of \r to overwrite current line
+				let str = data.toString();
+
+				if (pendingCR) {
+					str = "\r" + str;
+					pendingCR = false;
+				}
+
+				// If chunk ends with \r, hold it for next chunk
+				if (str.endsWith("\r")) {
+					pendingCR = true;
+					str = str.slice(0, -1);
+				}
+
+				// Normalize all line endings
+				str = str
+				.replace(/\r\n/g, "\n")  // collapse CRLF
+				.replace(/\r/g, "\n")    // CR → LF
+				.replace(/\n/g, "\r\n"); // LF → CRLF
+
+				this._writeEmitter.fire(str);
+			};
+			*/
 			this._process.stdout.on("data", handleData);
 			this._process.stderr.on("data", handleData);
 
