@@ -335,18 +335,6 @@
 					"description": "Whether to respect Shebang to run code.",
 					"scope"      : "resource"
 				},
-				"code-runner.terminalShell": {
-					"type": "string",
-					"default": "cmd.exe",
-					"description": "Custom terminal shell program. (Default is cmd.exe for windows).",
-					"scope": "resource"
-				},
-				"code-runner.terminalShellArgs": {
-					"type": "array",
-					"default": [],
-					"description": "Custom terminal shell program args. (Default is none).",
-					"scope": "resource"
-				},
 				"code-runner.echoCommand": {
 					"type"       : "boolean",
 					"default"    : false,

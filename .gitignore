@@ -4,3 +4,4 @@ out
 node_modules
 *.vsix
 !Build.ps1
+_settings.json5

@@ -439,100 +439,11 @@ export class CodeManager implements vscode.Disposable {
 		return `/mnt/${p1.toLowerCase()}/`;
 	}
 
-	/*
 	private async executeCommandInTerminal(executor: string, appendFile: boolean = true) {
-		let isNewTerminal = false;
-		if (!this._terminal) {
-			this._terminal = vscode.window.createTerminal({
-				name: "code-runner",
-				shellPath: this._config.get<string>("terminalShell"),
-				shellArgs: this._config.get<string[]>("terminalShellArgs"), // ["/Q", "/K", "prompt $G"],
-				cwd: this._cwd,
-			});
-			isNewTerminal = true;
-		}
 		this.sendRunEvent(executor, true);
-		if (this._config.get<boolean>("fileDirectoryAsCwd")) {
-			const cwd = this.changeFilePathForBashOnWindows(this._cwd);
-			if (this.isPowershellOnWindows()) {
-				executor = `cd "${cwd}"; ${executor}`;
-			} else {
-				executor = `cd "${cwd}" && ${executor}`;
-			}
-		}
-		if (this._config.get<boolean>("clearPreviousOutput")) { //  && !isNewTerminal
+
+		if (this._config.get<boolean>("clearPreviousOutput")) {
 			await vscode.commands.executeCommand("workbench.action.terminal.clear");
-			if (this.isPowershellOnWindows()) {
-				executor = `cls; ${executor}`;
-			} else {
-				executor = `cls && ${executor}`;
-			}
-		}
-		executor = this.changeExecutorFromCmdToPs(executor);
-		let command = await this.getFinalCommandToRunCodeFile(executor, appendFile);
-		command = this.changeFilePathForBashOnWindows(command);
-		this._terminal.sendText(command);
-		this._terminal.show(this._config.get<boolean>("preserveFocus"));
-	}
-	*/
-
-	/*
-	private async executeCommandInTerminal(executor: string, appendFile: boolean = true) {
-		this.sendRunEvent(executor, true);
-
-		executor = this.changeExecutorFromCmdToPs(executor);
-		let command = await this.getFinalCommandToRunCodeFile(executor, appendFile);
-		command = this.changeFilePathForBashOnWindows(command);
-
-		const task = new vscode.Task(
-			{ type: "myRunner" },
-			vscode.TaskScope.Workspace,
-			"code-runner",
-			"code-runner",
-			new vscode.ShellExecution(command, {
-				// executable: this._config.get<string>("terminalShell"),
-				// shellArgs: this._config.get<string[]>("terminalShellArgs"),
-				executable: "cmd.exe",
-				shellArgs: ["/C"],
-				cwd: this._cwd,
-			})
-		);
-		task.presentationOptions = {
-			reveal: vscode.TaskRevealKind.Always,
-			panel: vscode.TaskPanelKind.Shared,
-			clear: this._config.get<boolean>("clearPreviousOutput"),
-			echo: this._config.get<boolean>("echoCommand"),
-		};
-		let resolveClosePromise: Function;
-		this._closePromise = new Promise<void>(resolve => { resolveClosePromise = resolve });
-		this._isRunning = true;
-		try {
-			this._taskExec = await vscode.tasks.executeTask(task);
-			const disposable = vscode.tasks.onDidEndTaskProcess(e => {
-				if (e.execution === this._taskExec) {
-					this._isRunning = false;
-					resolveClosePromise();
-					disposable.dispose();
-				}
-			});
-		} catch (err) {
-			this._isRunning = false;
-			resolveClosePromise();
-			Utility.notify(`Failed to start task: ${err.message}`);
-		}
-	}
-	*/
-
-	private async executeCommandInTerminal(executor: string, appendFile: boolean = true) {
-		this.sendRunEvent(executor, true);
-
-		if (this._config.get<boolean>("clearPreviousOutput")) { //  && !isNewTerminal
-			await vscode.commands.executeCommand("workbench.action.terminal.clear");
-			// if (this.isPowershellOnWindows()) {
-			// 	executor = `cls; ${executor}`;
-			// } else {
-			// 	executor = `cls && ${executor}`;
-			// }
 		}
 
 		executor = this.changeExecutorFromCmdToPs(executor);
@@ -550,19 +461,9 @@ export class CodeManager implements vscode.Disposable {
 			this._process_killed = false;
 			vscode.commands.executeCommand("setContext", "code-runner.codeRunning", true);
 			this._process = spawn(command, {
-				// shell: this._config.get<string>("terminalShell"),
 				shell: true,
-				// shellArgs: this._config.get<string[]>("terminalShellArgs"), // ["/Q", "/K", "prompt $G"],
 				cwd: this._cwd,
-				// env: {
-				// 	...process.env, // eslint-disable-line no-process-env
-				// 	FORCE_COLOR: 1,
-				// },
 			});
-			// this._writeEmitter.fire(this._process.pid.toString() + "\r\n");
-			// this._writeEmitter.fire("\x1b[31mHello world\x1b[0m\r\n");
-			// this._writeEmitter.fire("1 Hello\r\n1 World\r\n");
-			// this._writeEmitter.fire("2 Hello\n\r2 World\n\r");
 
 			if (this._config.get<boolean>("echoCommand")) {
 				this._writeEmitter.fire(command + "\r\n");
@@ -581,11 +482,6 @@ export class CodeManager implements vscode.Disposable {
 			};
 			this._process.stdout.on("data", handleData);
 			this._process.stderr.on("data", handleData);
-			// this._process.stdout.on("data", data => this._writeEmitter.fire(data));
-			// this._process.stderr.on("data", data => this._writeEmitter.fire(data));
-			// const fire = this._writeEmitter.fire.bind(this._writeEmitter);
-			// this._process.stdout.on("data", fire);
-			// this._process.stderr.on("data", fire);
 
 			this._process.on("error", err => {
 				Utility.notify(`Failed to start subprocess. Error: ${err}`);
@@ -596,7 +492,6 @@ export class CodeManager implements vscode.Disposable {
 				const endTime = process.hrtime.bigint();
 				this._isRunning = false;
 				vscode.commands.executeCommand("setContext", "code-runner.codeRunning", false);
-				// this._writeEmitter.fire(`[Done] Process exited with code ${code}. ${this._process.killed ? "Process has been killed." : "Process has exited on its own."} Execution time: ${1} ms\r\n`);
 				if (!this._process_killed) {
 					const done = chalk.magentaBright("[Done]");
 					const exitCode = code === 0 ? chalk.greenBright(code) : chalk.redBright(code);
@@ -607,7 +502,7 @@ export class CodeManager implements vscode.Disposable {
 				}
 				resolveClosePromise();
 			});
-			startTime = process.hrtime.bigint(); // it is here because all other big call where async or with a callback and exec won't do anything until this function exits
+			startTime = process.hrtime.bigint(); // it is here because all other big call where async or with a callback and spawn won't do anything until this function exits
 		};
 
 		let inputBuffer = "";
@@ -620,9 +515,6 @@ export class CodeManager implements vscode.Disposable {
 					onDidWrite: this._writeEmitter.event,
 					open: open,
 					close: () => {},
-					// handleInput: data => { // you cannot directly assign write here because we need to get the reference to the new this._process
-					// 	this._process.stdin.write(data);
-					// },
 					handleInput: data => {
 						if (!this._isRunning) return;
 						switch (data) {
