@@ -401,25 +401,6 @@ export class CodeManager implements vscode.Disposable {
 		return (cmd !== executor ? cmd : executor + (appendFile ? " " + this.quoteFileName(this._codeFile) : ""));
 	}
 
-	private changeExecutorFromCmdToPs(executor: string): string {
-		if (executor.includes(" && ") && this.isPowershellOnWindows()) {
-			let replacement = "; if ($?) {";
-			executor = executor.replace("&&", replacement);
-			replacement = "} " + replacement;
-			executor = executor.replace(/&&/g, replacement);
-			executor = executor.replace(/\$dir\$fileNameWithoutExt/g, ".\\$fileNameWithoutExt");
-			return executor + " }";
-		}
-		return executor;
-	}
-
-	private isPowershellOnWindows(): boolean {
-		if (os.platform() === "win32") {
-			return this._config.get<string>("terminalShell").toLowerCase().includes("powershell");
-		}
-		return false;
-	}
-
 	private changeFilePathForBashOnWindows(command: string): string {
 		if (os.platform() === "win32") {
 			const windowsShell = vscode.env.shell;
@@ -446,7 +427,6 @@ export class CodeManager implements vscode.Disposable {
 			await vscode.commands.executeCommand("workbench.action.terminal.clear");
 		}
 
-		executor = this.changeExecutorFromCmdToPs(executor);
 		let command = await this.getFinalCommandToRunCodeFile(executor, appendFile);
 		command = this.changeFilePathForBashOnWindows(command);
 
@@ -461,7 +441,7 @@ export class CodeManager implements vscode.Disposable {
 			this._process_killed = false;
 			vscode.commands.executeCommand("setContext", "code-runner.codeRunning", true);
 			this._process = spawn(command, {
-				shell: true,
+				shell: command.match(/^[^.]+\.ps1/) ? "powershell.exe" : true,
 				cwd: this._cwd,
 			});
 
