@@ -421,6 +421,8 @@ export class CodeManager implements vscode.Disposable {
 	}
 
 	private async executeCommandInTerminal(executor: string, appendFile: boolean = true) {
+		const endl = "\r\n";
+
 		this.sendRunEvent(executor, true);
 
 		if (this._config.get<boolean>("clearPreviousOutput")) {
@@ -444,24 +446,14 @@ export class CodeManager implements vscode.Disposable {
 				shell: command.match(/^[^.]+\.ps1/) ? "powershell.exe" : true,
 				cwd: this._cwd,
 			});
+			this._process.stdout.setEncoding("utf8");
+			this._process.stderr.setEncoding("utf8");
 
 			if (this._config.get<boolean>("echoCommand")) {
-				this._writeEmitter.fire(command + "\r\n");
+				this._writeEmitter.fire(command + endl);
 			}
 
-			const handleData = data => {
-				let str: string = data.toString();
-				if (str.endsWith("\n\r")) {
-					str = str.slice(0, -2) + "\r\n";
-				} else if (!str.endsWith("\r\n")) {
-					if (str.endsWith("\r")) {
-						str += "\n";
-					} else if (str.endsWith("\n")) {
-						str = str.slice(0, -1) + "\r\n";
-					}
-				}
-				this._writeEmitter.fire(str);
-			};
+			const handleData = data => this._writeEmitter.fire(data.replaceAll("\n", "\r\n"));
 			/*
 			let pendingCR = false;
 			const handleData = data => { // this fixed wrong chalk --demo behaviour but disables the use of \r to overwrite current line
@@ -482,7 +474,7 @@ export class CodeManager implements vscode.Disposable {
 				str = str
 				.replace(/\r\n/g, "\n")  // collapse CRLF
 				.replace(/\r/g, "\n")    // CR → LF
-				.replace(/\n/g, "\r\n"); // LF → CRLF
+				.replace(/\n/g, endl); // LF → CRLF
 
 				this._writeEmitter.fire(str);
 			};
@@ -503,9 +495,10 @@ export class CodeManager implements vscode.Disposable {
 					const done = chalk.magentaBright("[Done]");
 					const exitCode = code === 0 ? chalk.greenBright(code) : chalk.redBright(code);
 					const timeDiffMs = Number(endTime - startTime) / 1e6 - this._config.get<number>("commandExecutionBaseTimeMs");
-					const timeToFixed = timeDiffMs < 1e4 ? 3 : 1;
-					const execTime = timeDiffMs >= 1000 ? chalk.blue((timeDiffMs / 1000).toFixed(timeToFixed)) + " s" : chalk.blue(timeDiffMs.toFixed(timeDiffMs < 100 ? 1 : 0)) + " ms";
-					this._writeEmitter.fire(`${done} Exit code: ${exitCode} | Execution time: ${execTime}\r\n`);
+					const execTime = timeDiffMs >= 1000 ?
+						chalk.blue((timeDiffMs / 1000).toFixed(timeDiffMs < 1e4 ? 3 : 1)) + " s" :
+						chalk.blue(timeDiffMs.toFixed(timeDiffMs < 100 ? 1 : 0)) + " ms";
+					this._writeEmitter.fire(`${done} Exit code: ${exitCode} | Execution time: ${execTime}${endl}`);
 				}
 				resolveClosePromise();
 			});
@@ -528,7 +521,7 @@ export class CodeManager implements vscode.Disposable {
 							case "\r": // Enter
 								this._process.stdin.write(inputBuffer + "\n");
 								inputBuffer = "";
-								this._writeEmitter.fire("\r\n");
+								this._writeEmitter.fire(endl);
 								break;
 							case "\x7f": // Backspace
 								if (inputBuffer.length > 0) {
@@ -567,9 +560,12 @@ export class CodeManager implements vscode.Disposable {
 		this._closePromise = new Promise<void>(resolve => { resolveClosePromise = resolve });
 		const startTime = performance.now();
 		this._process = spawn(command, { cwd: this._cwd, shell: true });
+		this._process.stdout.setEncoding("utf8");
+		this._process.stderr.setEncoding("utf8");
 
-		this._process.stdout.on("data", data => { this._outputChannel.append(data.toString()) });
-		this._process.stderr.on("data", data => { this._outputChannel.append(data.toString()) });
+		const handleData = data => this._outputChannel.append(data.replaceAll(/\r*\n+|\r+\n*/g, "\r\n"));
+		this._process.stdout.on("data", handleData);
+		this._process.stderr.on("data", handleData);
 
 		this._process.on("error", err => {
 			Utility.notify(`Failed to start subprocess. Error: ${err}`);
