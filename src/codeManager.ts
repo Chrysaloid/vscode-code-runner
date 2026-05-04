@@ -516,6 +516,7 @@ export class CodeManager implements vscode.Disposable {
 					open: open,
 					close: () => {},
 					handleInput: data => {
+						if (data === "\u001b") return vscode.commands.executeCommand("workbench.action.closePanel"); // Escape
 						if (!this._isRunning) return;
 						switch (data) {
 							case "\r": // Enter
