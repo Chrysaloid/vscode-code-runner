@@ -425,10 +425,6 @@ export class CodeManager implements vscode.Disposable {
 
 		this.sendRunEvent(executor, true);
 
-		if (this._config.get<boolean>("clearPreviousOutput")) {
-			await vscode.commands.executeCommand("workbench.action.terminal.clear");
-		}
-
 		let command = await this.getFinalCommandToRunCodeFile(executor, appendFile);
 		command = this.changeFilePathForBashOnWindows(command);
 
@@ -538,6 +534,10 @@ export class CodeManager implements vscode.Disposable {
 					},
 				},
 			});
+		}
+
+		if (this._config.get<boolean>("clearPreviousOutput")) {
+			this._writeEmitter.fire("\x1bc"); // ESC c - Reset to Initial State
 		}
 
 		this._terminal.show(this._config.get<boolean>("preserveFocus"));
