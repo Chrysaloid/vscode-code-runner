@@ -449,7 +449,8 @@ export class CodeManager implements vscode.Disposable {
 				this._writeEmitter.fire(command + endl);
 			}
 
-			const handleData = data => this._writeEmitter.fire(data.replaceAll("\n", "\r\n"));
+			const TAB_REPLACEMENT = " ".repeat(vscode.workspace.getConfiguration("editor").get<number>("tabSize"));
+			const handleData = data => this._writeEmitter.fire(data.replaceAll("\n", "\r\n").replaceAll("\t", TAB_REPLACEMENT));
 			/*
 			let pendingCR = false;
 			const handleData = data => { // this fixed wrong chalk --demo behaviour but disables the use of \r to overwrite current line
