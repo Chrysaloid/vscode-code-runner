@@ -11,6 +11,7 @@ import kill from "tree-kill";
 import micromatch from "micromatch";
 import { performance } from "perf_hooks";
 import { Utility } from "./utility.js";
+import which from "which";
 
 const TmpDir = os.tmpdir();
 
@@ -33,11 +34,13 @@ export class CodeManager implements vscode.Disposable {
 	private _closePromise: Promise<void> = null;
 	private _taskExec: vscode.TaskExecution = null;
 	private _writeEmitter: vscode.EventEmitter<string> = null;
+	private _powershell: string | null = null;
 
 	constructor() {
 		this._outputChannel = vscode.window.createOutputChannel("code-runner");
 		this._terminal = null;
 		this._appInsightsClient = new AppInsightsClient();
+		this._powershell = which.sync("pwsh.exe", { nothrow: true }) ?? which.sync("powershell.exe", { nothrow: true });
 	}
 
 	public onDidCloseTerminal(): void {
@@ -312,7 +315,7 @@ export class CodeManager implements vscode.Disposable {
 
 	/**
 	 * Gets the base name of the code file, that is without its directory.
-	 */
+	*/
 	private getCodeBaseFile(): string {
 		const regexMatch = this._codeFile.match(/.*[\/\\](.*)/);
 		return regexMatch ? regexMatch[1] : this._codeFile;
@@ -320,7 +323,7 @@ export class CodeManager implements vscode.Disposable {
 
 	/**
 	 * Gets the code file name without its directory and extension.
-	 */
+	*/
 	private getCodeFileWithoutDirAndExt(): string {
 		const regexMatch = this._codeFile.match(/.*[\/\\](.*(?=\..*))/);
 		return regexMatch ? regexMatch[1] : this._codeFile;
@@ -328,7 +331,7 @@ export class CodeManager implements vscode.Disposable {
 
 	/**
 	 * Gets the directory of the code file.
-	 */
+	*/
 	private getCodeFileDir(): string {
 		const regexMatch = this._codeFile.match(/(.*[\/\\]).*/);
 		return regexMatch ? regexMatch[1] : this._codeFile;
@@ -336,7 +339,7 @@ export class CodeManager implements vscode.Disposable {
 
 	/**
 	 * Gets the drive letter of the code file.
-	 */
+	*/
 	private getDriveLetter(): string {
 		const regexMatch = this._codeFile.match(/^([A-Za-z]:).*/);
 		return regexMatch ? regexMatch[1] : "$driveLetter";
@@ -344,14 +347,14 @@ export class CodeManager implements vscode.Disposable {
 
 	/**
 	 * Gets the directory of the code file without a trailing slash.
-	 */
+	*/
 	private getCodeFileDirWithoutTrailingSlash(): string {
 		return this.getCodeFileDir().replace(/[\/\\]$/, "");
 	}
 
 	/**
 	 * Includes double quotes around a given file name.
-	 */
+	*/
 	private quoteFileName(fileName: string): string {
 		return '\"' + fileName + '\"';
 	}
@@ -366,7 +369,7 @@ export class CodeManager implements vscode.Disposable {
 	 *
 	 * @param executor The command used to run a source code file
 	 * @return the complete command to run the file, that includes the file name
-	 */
+	*/
 	private async getFinalCommandToRunCodeFile(executor: string, appendFile: boolean = true): Promise<string> {
 		let cmd = executor;
 
@@ -438,9 +441,10 @@ export class CodeManager implements vscode.Disposable {
 			this._isRunning = true;
 			this._process_killed = false;
 			vscode.commands.executeCommand("setContext", "code-runner.codeRunning", true);
-			this._process = spawn(command, {
-				shell: command.match(/^[^.]+\.ps1/) ? "powershell.exe" : true,
+			this._process = spawn(command, [], {
+				shell: command.match(/^\S*\.ps1\b/i) && this._powershell ? this._powershell : true,
 				cwd: this._cwd,
+				env: { ...process.env, WAS_RUN_BY_CODE_RUNNER: "1" },
 			});
 			this._process.stdout.setEncoding("utf8");
 			this._process.stderr.setEncoding("utf8");
@@ -561,7 +565,11 @@ export class CodeManager implements vscode.Disposable {
 		let resolveClosePromise: Function;
 		this._closePromise = new Promise<void>(resolve => { resolveClosePromise = resolve });
 		const startTime = performance.now();
-		this._process = spawn(command, { cwd: this._cwd, shell: true });
+		this._process = spawn(command, [], {
+			shell: true,
+			cwd: this._cwd,
+			env: { ...process.env, WAS_RUN_BY_CODE_RUNNER: "1" },
+		});
 		this._process.stdout.setEncoding("utf8");
 		this._process.stderr.setEncoding("utf8");
 

@@ -1,4 +1,4 @@
-﻿tsc --build --verbose
+tsc --build --verbose
 if ($LASTEXITCODE -ne 0) {
 	Write-Host "TypeScript compilation failed (exit code $LASTEXITCODE)"
 	PressEnterToContinue.ps1
